@@ -1,0 +1,254 @@
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = F) # makes it so that it doesn't display the code that produces the output
+library(tidyverse)
+library(lubridate)
+library(haven)
+library(readxl)
+library(stringr)
+library(googleVis)
+library(statisticalModeling)
+library(knitr)
+
+# Steps
+## 1. Add date to read_dates object
+## 2. Pull files from Discoverer, make sure Cohortyear == 2013
+## 3. Remember to export files right from Discoverer to K:/ORP_accountability/projects/2017_graduation_rate as .csv
+## 4. Follow naming convention
+
+
+# Can we plot 2016, 2017, and 2018 progress?
+
+
+
+
+
+
+
+
+
+
+date = str_replace_all(as.character(Sys.Date()), "-", "")
+read_dates = c("20161207", "20170202", "20170207", "20170210", "20170217", "20170224", "20170302", "20170313", "20170317", "20170324", "20170331", "20170407", "20170419", "20170421", "20170428", "20170508", "20170515", "20170519", "20170526", "20170602", "20170606", "20170607", "20170608", "20170609", "20170612", "20170613", "20170614", "20170615", "20170616", "20170619", "20170621", "20170623", "20170630", "20170707")
+
+# Documents and Reviews 
+docs2016 = read_csv("K:/ORP_accountability/projects/2017_graduation_rate/Data/n_docs_over_time_2016.csv") %>% 
+    mutate(date = date + dyears(1), 
+           year = 2016)
+docs2017 = as.tbl(data.frame(date = as.Date(NA),
+                          n_elig = as.integer(NA),
+                          n_docs = as.integer(NA),
+                          n_reviewed = as.integer(NA),
+                          year = as.integer(NA)))
+for(i in seq_along(read_dates)) {
+    d = read_dates[i]
+    g = paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdata_",
+                  d, ".csv") %>% 
+        read_csv() %>% 
+        filter(Cohortyear == 2013) %>% 
+        left_join(read_csv(paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdocs_",
+                                  d, ".csv")), 
+                  by = c("Student key" = "Student Key SUM")) %>% 
+        summarise(date = ymd(d),
+                  n_elig = sum(`Withdrawal reason SUM` %in% c(2,5,6,8,10,17), na.rm = T),
+                  n_docs = sum(!is.na(`Modified Date`)),
+                  n_reviewed = sum(!is.na(`Reviewed Date`)),
+                  year = year(Sys.Date()))
+    docs2017[i, ] = g
+}
+rm(d, g, i)
+
+# By District
+p = read_csv("K:/ORP_accountability/data/2016_graduation_rate/student_level_20161201.csv") %>% 
+    group_by(system) %>% 
+    summarize(grad_cohort = sum(included_in_cohort == "Y", na.rm = T),
+              grad_count = sum(included_in_cohort == "Y" & completion_type == 1, na.rm = T)) %>% 
+    ungroup() %>% 
+    mutate(grad_rate = round(100 * grad_count / grad_cohort, 1)) %>% 
+    select(system, grad_rate)
+
+bydist = paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdata_", read_dates[length(read_dates)], ".csv") %>% 
+    read_csv() %>% 
+    left_join(read_csv(paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdocs_", 
+                              read_dates[length(read_dates)], ".csv")), 
+              by = c("Student key" = "Student Key SUM")) %>% 
+    mutate(`Modified Date` = dmy(`Modified Date`),
+           `Reviewed Date` = dmy(`Reviewed Date`),
+           grad_cohort = (`Included in cohort` == "Y" & is.na(`Revised Included In Cohort`)) | 
+               `Revised Included In Cohort` == "Y" | 
+               (`Included in cohort` == "P" & (is.na(`Revised Included In Cohort`) | `Revised Included In Cohort` == "Y")),
+           grad_count = grad_cohort == T & `Completion type` == 1,
+           n_elig = `Withdrawal reason SUM` %in% c(2,5,6,8,10,17),
+           n_missing_info = is.na(`Withdrawal reason SUM`) & is.na(`Completion type`),
+           n_uploaded = !is.na(`Modified Date`),
+           n_reviewed = !is.na(`Reviewed Date`),
+           n_approved = `Revised Included In Cohort` == "N",
+           n_to_review_again = n_approved == F & `Modified Date` > `Reviewed Date`,
+           n_code_changed = as.numeric(str_sub(str_replace_all(Comments, "\\.", ""),
+                                            str_length(Comments) - 2, 
+                                            str_length(Comments))) == `Withdrawal reason SUM` & 
+               `Revised Included In Cohort` == "Y") %>% 
+    group_by(`District no`) %>% 
+    summarize(grad_cohort = sum(grad_cohort, na.rm = T),
+              grad_count = sum(grad_count, na.rm = T),
+              n_elig = sum(n_elig, na.rm = T),
+              n_missing_info = sum(n_missing_info, na.rm = T),
+              n_uploaded = sum(n_uploaded, na.rm = T),
+              n_reviewed = sum(n_reviewed, na.rm = T),
+              n_approved = sum(n_approved, na.rm = T),
+              n_to_review_again = sum(n_to_review_again, na.rm = T),
+              n_code_changed = sum(n_code_changed, na.rm = T)) %>% 
+    mutate(grad_rate = round(100 * grad_count / grad_cohort, 1),
+           pct_missing_info = round(100 * n_missing_info / grad_cohort, 1),
+           pct_uploaded = ifelse(n_elig == 0, NA, round(100 * n_uploaded / n_elig, 1)),
+           pct_reviewed = ifelse(n_uploaded == 0, NA, round(100 * n_reviewed / n_uploaded, 1)),
+           pct_approved = ifelse(n_reviewed == 0, NA, round(100 * n_approved / n_reviewed, 1)),
+           pct_to_review_again = ifelse(is.na(pct_reviewed) | pct_reviewed == 0, NA, round(100 * n_to_review_again / n_reviewed, 1)),
+           pct_code_changed = ifelse(is.na(pct_reviewed) | pct_reviewed == 0, NA, round(100 * n_code_changed / n_reviewed, 1))) %>% 
+    left_join(p, by = c("District no" = "system")) %>% 
+    left_join(mutate(read_dta("C:/Users/CA19130/Documents/Data/Crosswalks/system_system_name_crosswalk.dta"), system = as.integer(system)), by = c("District no" = "system")) %>%     
+    select(system = `District no`, system_name, grad_rate2016 = grad_rate.y, grad_rate2017 = grad_rate.x, starts_with("n_"), starts_with("pct_"))
+
+# Year-over-Year Comparisons
+yoy = docs2016 %>% 
+    mutate(date_prev = ymd(read_dates[length(read_dates)]), 
+           date_check = abs(date - date_prev)) %>% 
+    filter(date_check == min(date_check)) %>% 
+    filter(n_reviewed == max(n_reviewed)) %>% 
+    bind_rows(filter(docs2017, date == max(date))) %>% 
+    select(n_docs, n_reviewed, date, year)
+
+# Time left estimations
+ltr = bind_rows(docs2017 %>% 
+                    filter(date == ymd(20170224)),
+                docs2017 %>% 
+                    filter(date == max(date))) # will need a way of accounting for when they plateau
+
+# Status Update File for Reviewers
+bydist %>% select(system, system_name, n_eligible = n_elig, n_uploaded, n_reviewed, pct_uploaded, pct_reviewed, n_to_review_again, n_code_changed) %>% 
+    write_csv(paste0("K:/ORP_accountability/projects/2017_graduation_rate/Documents for Reviewers/Status Updates/document_status_update_", read_dates[length(read_dates)], ".csv"), na = "")
+```
+
+---
+title: "Graduation Cohort Update"
+author: "Evan Kramer"
+date: `r paste0(month(ymd(read_dates[length(read_dates)]), label = T, abbr = F), " ", day(ymd(read_dates[length(read_dates)])), ", ", year(ymd(read_dates[length(read_dates)])))`
+output: html_document
+---
+
+### Document Overview
+This document provides a snapshot of the graduation cohort numbers and highlights red flags.
+
+### Uploaded Documents
+Districts have uploaded __`r docs2017 %>% filter(date == max(date)) %>% select(n_docs) %>% as.integer()`__ documents, and we have reviewed __`r docs2017 %>% filter(date == max(date)) %>% select(n_reviewed) %>% as.integer()`__ of them (__`r round(100 * docs2017 %>% filter(date == max(date)) %>% select(n_reviewed) %>% as.integer() / docs2017 %>% filter(date == max(date)) %>% select(n_docs) %>% as.integer(), 1)`__%). If all students who are currently eligible for removal remain so, there would be __`r docs2017 %>% filter(date == max(date)) %>% select(n_elig) %>% as.integer()`__ documents to review. 
+ 
+```{r, echo = F}
+## Plot document reviews compared to uploads
+docs2017 %>% 
+    gather(doc_type, n_docs, 2:4) %>%
+    mutate(doc_type = ifelse(doc_type == "n_docs", "Uploaded", doc_type),
+           doc_type = ifelse(doc_type == "n_elig", "Eligible", doc_type),
+           doc_type = ifelse(doc_type == "n_reviewed", "Reviewed", doc_type)) %>% 
+    ggplot(aes(x = date, y = n_docs, col = doc_type)) + 
+        geom_point() + 
+        geom_line() + 
+        xlab("Date") + 
+        ylab("Number of Documents") + 
+        scale_color_manual(guide = guide_legend(title = ""), values = c(rgb(152/255, 153/255, 157/255),
+                                                                        rgb(238/255, 49/255, 36/255),
+                                                                        rgb(27/255, 54/255, 93/255))) + 
+        theme_bw()
+```
+
+So far we have reviewed about `r as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1]))))` documents per day. At that rate, it would take us `r as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_docs) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1]))))))` days to review all remaining documents (`r paste(month(ymd(read_dates[length(read_dates)]) + days(as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_docs) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1]))))))), label = T, abbr = F), day(ymd(read_dates[length(read_dates)]) + days(as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_docs) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1])))))))))`). If districts submit documents for all currently eligible students, it would take us `r as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_elig) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1]))))))` days to review them (`r paste(month(ymd(read_dates[length(read_dates)]) + days(as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_elig) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1]))))))), label = T, abbr = F), day(ymd(read_dates[length(read_dates)]) + days(as.numeric(round((docs2017 %>% filter(date == max(date)) %>% select(n_elig) - docs2017 %>% filter(date == max(date)) %>% select(n_reviewed)) / as.numeric(round((ltr[2, 3] - ltr[1, 3]) / as.numeric((ltr[2, 1] - ltr[1, 1])))))))))`).
+
+### Comparison to Prior Year
+Districts have uploaded __`r abs(yoy[2, 1] - yoy[1, 1])` `r ifelse(yoy[2, 1] - yoy[1, 1] >= 0, "more", "less")`__ documents compared to about this time last year. `r ifelse(ymd(read_dates[length(read_dates)]) > ymd(20170616), "The deadline to upload documentation has passed.", str_c("There are ", format(difftime(ymd(20170616), ymd(read_dates[length(read_dates)]), units = "days")), " left for districts to upload documentation."))`
+
+```{r, echo = F}
+## Plot document uploads compared to last year
+bind_rows(docs2016, docs2017) %>% 
+    ggplot(aes(x = date, y = n_docs, col = factor(year))) + 
+        geom_point() + 
+        geom_line() +
+        geom_vline(xintercept = as.numeric(ymd(20170616))) + 
+        xlab("Date") + 
+        ylab("Number of Documents") + 
+        scale_color_manual(guide = guide_legend(title = "Year"), values = c(rgb(27/255, 54/255, 93/255),
+                                                                            rgb(238/255, 49/255, 36/255))) + 
+        theme_bw()
+```
+
+We have reviewed __`r abs(yoy[2, 2] - yoy[1, 2])` `r ifelse(yoy[2, 2] - yoy[1, 2] >= 0, "more", "less")`__ documents than about this time last year.
+
+```{r, echo = F}
+## Plot document reviews compared to last year
+bind_rows(docs2016, docs2017) %>% 
+    ggplot(aes(x = date, y = n_reviewed, col = factor(year))) + 
+        geom_point() + 
+        geom_line() + 
+        xlab("Date") + 
+        ylab("Number of Reviews") + 
+        scale_color_manual(guide = guide_legend(title = "Year"), values = c(rgb(27/255, 54/255, 93/255),
+                                                                            rgb(238/255, 49/255, 36/255))) + 
+        theme_bw()
+```
+
+### Document Approval Rates
+Overall we have approved __`r round(sum(bydist$n_approved) / sum(bydist$n_reviewed) * 100, 1)`%__ of the documents we have reviewed. There are currently __`r bydist %>% filter(pct_approved <= 20) %>% count() %>% as.integer()`__ districts with high percentages of denied documents (20% or more), and there are __`r bydist %>% summarize(sum(n_to_review_again, na.rm = T)) %>% as.integer()`__ students whose documentation must be reviewed again (i.e., the initial submission was denied but the district subsequently submitted a new document). Additionally, there are __`r bydist %>% summarize(sum(n_code_changed, na.rm = T)) %>% as.integer()`__ students whose withdrawal codes have been corrected and must be verified and recorded in the cohort.
+
+```{r, echo = F, warning = F, message = F, results = "asis"}
+revs2016 = read_tsv("K:/ORP_accountability/projects/2016_graduation_rate/Data/Raw/studentcohortdata_cohort2012_revisedincluded_20160817.txt") %>% 
+    group_by(`Withdrawal reason SUM`) %>% 
+    summarize(n_reviewed = sum(!is.na(`Revised Included In Cohort`), na.rm = T),
+              n_approved = sum(`Revised Included In Cohort` == "N", na.rm = T)) %>% 
+    ungroup() %>% 
+    mutate(year = 2016,
+           pct_approved = ifelse(n_reviewed == 0, NA, round(100 * n_approved / n_reviewed, 1))) %>% 
+    filter(`Withdrawal reason SUM` %in% c(2, 5, 6, 8, 10, 17))
+
+revs2017 = paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdata_", read_dates[length(read_dates)], ".csv") %>% 
+    read_csv() %>% 
+    left_join(read_csv(paste0("K:/ORP_accountability/projects/2017_graduation_rate/Data/studentcohortdocs_", 
+                              read_dates[length(read_dates)], 
+                              ".csv")),
+              by = c("Student key" = "Student Key SUM")) %>% 
+    group_by(`Withdrawal reason SUM`) %>% 
+    summarize(n_reviewed = sum(!is.na(`Revised Included In Cohort`), na.rm = T),
+              n_approved = sum(`Revised Included In Cohort` == "N", na.rm = T)) %>% 
+    ungroup() %>% 
+    mutate(year = 2017,
+           pct_approved = ifelse(n_reviewed == 0, NA, round(100 * n_approved / n_reviewed, 1))) %>% 
+    filter(`Withdrawal reason SUM` %in% c(2, 5, 6, 8, 10, 17))
+
+bind_rows(revs2016, revs2017) %>% 
+    group_by(`Withdrawal reason SUM`) %>% 
+    mutate(diff = max(pct_approved) - min(pct_approved) > 5) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = factor(`Withdrawal reason SUM`), y = pct_approved, fill = factor(year), alpha = diff)) + 
+        geom_bar(position = "dodge", stat = "identity") + 
+        geom_label(aes(label = pct_approved), position = position_dodge(width = .9), col = rgb(152/255, 153/255, 157/255)) + 
+        xlab("Withdrawal Code") +  
+        ylab("Percent of Documents Approved") + 
+        scale_fill_manual(guide = guide_legend("Year"), values = c(rgb(27/255, 54/255, 93/255),
+                                                                  rgb(238/255, 49/255, 36/255))) + 
+        guides(alpha = F) + 
+        theme_bw()
+```
+
+## Red Flags
+### Missing/Incomplete Data/Documentation
+Currently, __`r bydist %>% filter(pct_uploaded == 0) %>% count() %>% as.integer()`__ districts have uploaded no documentation, whereas __`r bydist %>% filter(pct_uploaded == 100) %>% count() %>% as.integer()`__ districts have uploaded documentation for all eligible students.
+```{r, echo = F, warning = F, message = F, results = "asis"}
+bydist %>% filter(pct_uploaded == 0 & !is.na(system)) %>% select(system, system_name, pct_uploaded) %>% kable()
+```
+
+At present there are __`r bydist %>% filter(pct_missing_info >= 85) %>% count() %>% as.integer()`__ districts that have a high percentage (85% or more) of students who are missing both completion and withdrawal information.
+```{r, echo = F, warning = F, message = F, results = "asis"}
+bydist %>% filter(pct_missing_info >= 85 & !is.na(system)) %>% select(system, system_name, pct_missing_info) %>% arrange(desc(pct_missing_info)) %>% kable()
+```
+
+### Low/Dropping Graduation Rates
+Currently there are __`r bydist %>% filter(grad_rate2017 < 85) %>% count() %>% as.integer()`__ districts with graduation rates below 85%. Additionally, __`r bydist %>% filter(grad_rate2017 - grad_rate2016 <= -2) %>% count() %>% as.integer()`__ districts have graduation rates that are lower than their prior year graduation rates by 2 or more points.
+```{r, echo = F, warning = F, message = F, results = "asis"}
+bydist %>% filter(grad_rate2017 - grad_rate2016 <= -2 & !is.na(system)) %>% select(system, system_name, starts_with("grad_rate")) %>% kable()
+```
