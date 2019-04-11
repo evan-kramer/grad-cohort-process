@@ -1,0 +1,98 @@
+```{r setup, include = F}
+library(tidyverse)
+library(lubridate)
+library(haven)
+library(knitr)
+library(rmarkdown)
+
+# Set variables
+date = str_replace_all(today(), "-", "")
+knitr::opts_chunk$set(echo = F) # makes it so that it doesn't display the code that produces the output
+setwd("N:/ORP_accountability/data")
+
+# Data
+student_level_current = read_csv(str_c(year(today()), "_graduation_rate/student_level.csv"),
+                                 col_types = "dccccTccTdcccccccdcdddcddcTcccdccccccdcTcccdTc")
+student_level_prior = read_csv(str_c(year(today()) - 1, "_graduation_rate/student_level_20170830.csv"))
+school_level_current = read_csv(str_c(year(today()), "_graduation_rate/school_grad_rate.csv"))
+school_level_prior = read_csv(str_c(year(today()) - 1, "_graduation_rate/grad_rate_base_EK.csv")) %>% 
+  filter(system != 0 & school != 0)
+district_level_current = read_csv(str_c(year(today()), "_graduation_rate/district_grad_rate.csv"))
+district_level_prior = read_csv(str_c(year(today()) - 1, "_graduation_rate/grad_rate_base_EK.csv")) %>% 
+  filter(system != 0 & school == 0)
+state_level_current = read_csv(str_c(year(today()), "_graduation_rate/state_grad_rate.csv"))
+state_level_prior = read_csv(str_c(year(today()) - 1, "_graduation_rate/grad_rate_base_EK.csv")) %>% 
+  filter(system == 0 & school == 0)
+
+```
+
+---
+title: "Graduation Rate Release Memo"
+author: "Assessment, Accountability, and Data Governance"
+date: `r str_c(month(today(), label = T, abbr = T), ". ", day(today()), ", ", year(today()))`
+output: pdf_document
+---
+
+#### How did the graduation rate compare to last year/historical data?
+* `r state_level_current$grad_rate[state_level_current$subgroup == "All Students"]` percent of the `r year(today())` graduation cohort graduated on time with a regular diploma.
+    + This rate was `r case_when(state_level_current$grad_rate[state_level_current$subgroup == "All Students"] == state_level_prior$grad_rate[state_level_prior$subgroup == "All Students"] ~ "the same", state_level_current$grad_rate[state_level_current$subgroup == "All Students"] > state_level_prior$grad_rate[state_level_prior$subgroup == "All Students"] ~ "higher", state_level_current$grad_rate[state_level_current$subgroup == "All Students"] < state_level_prior$grad_rate[state_level_prior$subgroup == "All Students"] ~ "lower")` compared to last year`r ifelse(state_level_current$grad_rate[state_level_current$subgroup == "All Students"] == state_level_prior$grad_rate[state_level_prior$subgroup == "All Students"], ".", str_c("(", abs(state_level_current$grad_rate[state_level_current$subgroup == "All Students"] - state_level_prior$grad_rate[state_level_prior$subgroup == "All Students"]), ")."))`
+    + `r abs(state_level_current$grad_count[state_level_current$subgroup == "All Students"] - state_level_prior$grad_count[state_level_prior$subgroup == "All Students"])` `r ifelse(state_level_current$grad_count[state_level_current$subgroup == "All Students"] > state_level_prior$grad_count[state_level_prior$subgroup == "All Students"], "more", "fewer")` students graduated in the `r year(today())` cohort compared to last year, for a total of `r state_level_current$grad_count[state_level_current$subgroup == "All Students"]`. 
+
+#### How many districts have high graduation rates? 
+* `r nrow(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10 & grad_rate >= 95))` districts graduated 95 percent or more of their cohorts. `r nrow(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10 & grad_rate == 100))` districts graduated 100 percent of their students:
+
+``` {r, echo = F}
+kable(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10 & grad_rate == 100))
+```
+
+* `r nrow(filter(school_level_current, subgroup == "All Students" & grad_cohort >= 10 & grad_rate == 100))` schools had graduation rates of 100 percent.
+
+#### How much did districts improve? 
+* `r left_join(transmute(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10), system, system_name, grad_rate), transmute(filter(district_level_prior, subgroup == "All Students" & grad_cohort >= 10), system, grad_rate), by = "system") %>% filter(grad_rate.x > grad_rate.y) %>% nrow()` districts improved their graduation rates from `r year(today()) - 1` to `r year(today())`. `r left_join(transmute(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10), system, system_name, grad_rate), transmute(filter(district_level_prior, subgroup == "All Students" & grad_cohort >= 10), system, grad_rate), by = "system") %>% filter(grad_rate.x - grad_rate.y >= 5) %>% nrow()` districts improved by 5 percentage points or more.
+
+``` {r, echo = F}
+yoy = left_join(transmute(filter(district_level_current, subgroup == "All Students" & grad_cohort >= 10), 
+                          system, system_name, grad_cohort_current = grad_cohort, grad_rate_current = grad_rate), 
+                transmute(filter(district_level_prior, subgroup == "All Students" & grad_cohort >= 10), 
+                          system, grad_rate_previous = grad_rate), by = "system") %>% 
+  arrange(desc(grad_cohort_current))
+
+filter(yoy, grad_rate_current - grad_rate_previous >= 5) %>% 
+  arrange(desc(grad_rate_current - grad_rate_previous)) %>% 
+  kable()
+
+```
+
+#### How did our larger districts perform?
+* Our 10 largest districts showed mixed results: 
+    + __`r yoy[1, 2]`__: `r yoy[1, 4]`% compared to `r yoy[1, 5]`% last year
+    + __`r yoy[2, 2]`__: `r yoy[2, 4]`% compared to `r yoy[2, 5]`% last year
+    + __`r yoy[3, 2]`__: `r yoy[3, 4]`% compared to `r yoy[3, 5]`% last year
+    + __`r yoy[4, 2]`__: `r yoy[4, 4]`% compared to `r yoy[4, 5]`% last year
+    + __`r yoy[5, 2]`__: `r yoy[5, 4]`% compared to `r yoy[5, 5]`% last year
+    + __`r yoy[6, 2]`__: `r yoy[6, 4]`% compared to `r yoy[6, 5]`% last year
+    + __`r yoy[7, 2]`__: `r yoy[7, 4]`% compared to `r yoy[7, 5]`% last year
+    + __`r yoy[8, 2]`__: `r yoy[8, 4]`% compared to `r yoy[8, 5]`% last year
+    + __`r yoy[9, 2]`__: `r yoy[9, 4]`% compared to `r yoy[9, 5]`% last year
+    + __`r yoy[10, 2]`__: `r yoy[10, 4]`% compared to `r yoy[10, 5]`% last year
+    
+#### How did our subgroups perform?
+* Subgroups showed mixed performance.
+``` {r, echo = F}
+left_join(transmute(filter(state_level_current, subgroup %in% c("Black/Hispanic/Native American", 
+                                                                "Economically Disadvantaged",
+                                                                "English Learners with Transitional 1-4",
+                                                                "Students with Disabilities")), 
+                    system, system_name, subgroup, grad_cohort_current = grad_cohort, grad_rate_current = grad_rate),
+          transmute(filter(state_level_prior, subgroup %in% c("Black/Hispanic/Native American", 
+                                                                "Economically Disadvantaged",
+                                                                "English Learners with Transitional 1-4",
+                                                                "Students with Disabilities")), 
+                    system, subgroup, grad_rate_previous = grad_rate), by = c("system", "subgroup")) %>% 
+  kable()
+```
+
+*	9 districts improved their graduation rates by 5 percentage points or more. The districts with the most significant gains were Union City (9.4 percentage points), Richard City (8.7 percentage points), Van Buren County (8.4 percentage points), Sequatchie County (7.6 percentage points), and Bledsoe County (6.5 percentage points)
+*	44 districts-overt one-third of the districts in the state with high schools-have graduation rates at or above 95 percent, up from last year.
+*	106 districts-nearly 81 percent of the districts in the state-have graduation rates at or above 90 percent, up from 98 districts last year. Richard City, Oneida SSD, Alcoa City, and Morgan county all had graduation rates at or above 99 percent.
+*	22 schools across 16 schools districts had graduation rates of 100 percent
