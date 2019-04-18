@@ -11,11 +11,11 @@ setwd("N:/ORP_accountability/projects/2019_graduation_rate/Documentation for Coh
 
 # Switches
 tracker = T
-changes = F
 output = T
+changes = T
 
 # Tracker
-if(tracker == T) {
+if(tracker) {
   # Find the worksheet that is closest to today's date
   d = list.files("Worksheets")[ymd(list.files("Worksheets")) <= today() + ddays(2)]
   
@@ -57,20 +57,8 @@ if(tracker == T) {
   rm(tracker)
 }
 
-# Changes
-if(changes == T) {
-  t = readxl::read_excel("N:/ORP_accountability/projects/2019_graduation_rate/Documentation for Cohort Changes/Cohort Changes Master Tracker.xlsx") %>% 
-    filter(Status == "Approve")
-  
-  t$`Student ID`[t$Action == "Set INCLUDED_IN_COHORT = 'N'"]
-  
-  rm(t)
-} else {
-  rm(changes)
-}
-
 # Output files
-if(output == T) {
+if(output) {
   file = "Cohort Changes Data.xlsx"
   if(file %in% list.files()) {
     # If there is no Archive folder, create one 
@@ -93,4 +81,32 @@ if(output == T) {
   xlsx::write.xlsx(as.data.frame(a), file, row.names = F, append = F, sheetName = "Individual", showNA = F)
 } else {
   rm(output)
+}
+
+# Changes
+if(changes) {
+  con = dbConnect(
+    JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
+    readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
+    "EIS_MGR",
+    readRegistry("Environment", "HCU")$EIS_MGR_PWD
+  )
+  
+  t = readxl::read_excel("N:/ORP_accountability/projects/2019_graduation_rate/Documentation for Cohort Changes/Cohort Changes Master Tracker.xlsx") %>% 
+    filter(Status == "Approve") %>% 
+    mutate(Action = str_replace_all(Action, "Change COHORTYEAR to", "Set COHORTYEAR ="))
+  
+  for(i in 1:nrow(t)) {
+    dbSendUpdate(
+      con,
+      str_c(
+        "update studentcohortdata ",
+        t$Action[i], 
+        " where student_key = ",
+        t$`Student ID`[i]
+      )
+    )
+  }
+} else {
+  rm(changes)
 }
