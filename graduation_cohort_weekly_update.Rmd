@@ -18,7 +18,27 @@ con = dbConnect(
   "EIS_MGR",
   readRegistry("Environment", "HCU")$EIS_MGR_PWD
 )
-scd = as.tbl(dbGetQuery(con, str_c("select scd.student_key, student_ssn, first_name, middle_name, last_name, suffix, date_of_birth, gender, student_pin, immigrant, date_1st_enrolled_us_school, year_entered_grade9, native_language, grad_ell_flag, grad_se_flag, ethnicity, race_i, race_a, race_p, race_b, race_w, cohortyear, calc_from, district_no, school_no, assignment, eoy_action, withdrawal_reason, completion_type, ell, econ_dis, sped, year_withdrawn, included_in_cohort, race_ethnicity, manual_intervention, homeless, cte, migrant, scd.isp_id, ell_detail, pending_included_in_cohort, completion_period, completion_date, allow_upload, t1_t2, original_filename, modified_date, user_id, save_as_filename, comments, revised_included_in_cohort, reviewer_user_id, reviewed_date, appeal_comments, appeal_date, status from studentcohortdata scd left outer join studentcohortdocs doc on scd.student_key = doc.student_key where scd.cohortyear = ", current_year - 4))) %>% janitor::clean_names()
+scd = as.tbl(
+  dbGetQuery(
+    con,
+    str_c(
+"select student_key, student_ssn, first_name, middle_name, last_name, suffix,
+  date_of_birth, gender, student_pin, immigrant, date_1st_enrolled_us_school, 
+  year_entered_grade9, native_language, grad_ell_flag, grad_se_flag, ethnicity, 
+  race_i, race_a, race_p, race_b, race_w, cohortyear, calc_from, district_no, 
+  school_no, assignment, eoy_action, withdrawal_reason, completion_type, ell, 
+  econ_dis, sped, year_withdrawn, included_in_cohort, race_ethnicity, 
+  manual_intervention, homeless, cte, migrant, isp_id, ell_detail, 
+  pending_included_in_cohort, completion_period, completion_date, allow_upload, 
+  t1_t2, original_filename, modified_date, user_id, save_as_filename, comments, 
+  revised_included_in_cohort, reviewer_user_id, reviewed_date, appeal_comments, 
+  appeal_date, status 
+from studentcohortdata
+left outer join studentcohortdocs using (student_key) 
+where cohortyear = ", current_year - 4)
+  )
+) %>% 
+  janitor::clean_names()
 write_csv(scd, str_c("N:/ORP_accountability/projects/", current_year,
 "_graduation_rate/Data/studentcohortdata_", date, ".csv"), na = "")
 
