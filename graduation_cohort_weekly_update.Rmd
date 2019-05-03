@@ -331,7 +331,7 @@ ifelse(max_date < deadline - ddays(30), NA, bydist %>% filter(grad_rate_current 
 ```
 
 ```{r, echo = F, include = F}
-file.copy(from = str_c("N:/ORP_accountability/projects/", current_year, "_graduation_rate/Coding/R/graduation_cohort_weekly_update.html"),
+file.copy(from = str_c("N:/ORP_accountability/projects/", current_year, "_graduation_rate/Coding/Final/graduation_cohort_weekly_update.html"),
           to = str_c("N:/ORP_accountability/projects/", current_year, "_graduation_rate/Process Documents/Snapshots/cohort_snapshot_", date, ".html"),
           overwrite = T)
 ```
