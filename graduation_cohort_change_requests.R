@@ -1,6 +1,6 @@
 # Graduation Cohort Change Requests
 # Evan Kramer
-# 10/25/2018
+# 6/3/2019
 
 options(java.parameters = "-Xmx16G")
 library(tidyverse)
@@ -103,7 +103,7 @@ if(changes) {
         "update studentcohortdata ",
         t$Action[i], 
         " where student_key = ",
-        t$`Student ID`[i]
+        str_trim(t$`Student ID`[i])
       )
     )
   }

@@ -1,6 +1,6 @@
 # Graduation Cohort Reminder Emails
 # Evan Kramer
-# 4/11/2019
+# 6/14/2018
 
 options(java.parameters = "-Xmx16G")
 library(tidyverse)
@@ -9,53 +9,63 @@ library(haven)
 library(RJDBC)
 
 date = str_replace_all(today(), "-", "")
-phase1 = F
+phase1 = T
 phase2 = F
 checks = F
 
 # Phase I
 if(phase1 == T) {
-  # Data
-  ## From EIS
-  con = dbConnect(
-    JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
-    readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
-    "EIS_MGR",
-    readRegistry("Environment", "HCU")$EIS_MGR_PWD
-  )
-  
-  student_level_current = as.tbl(dbGetQuery(con, "
-  SELECT scd.student_key, district_no, school_no, included_in_cohort, revised_included_in_cohort, withdrawal_reason,
-    completion_type, modified_date, user_id, status, comments, reviewer_user_id, reviewed_date, cte
-  FROM studentcohortdocs doc
-  RIGHT OUTER JOIN studentcohortdata scd on scd.student_key = doc.student_key
-  WHERE scd.cohortyear = EXTRACT(year from sysdate) - 4")) 
+  # From EIS
+  student_level_current = dbGetQuery(
+    dbConnect(
+      JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
+      readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
+      "EIS_MGR",
+      readRegistry("Environment", "HCU")$EIS_MGR_PWD
+    ),
+    "select student_key, district_no, school_no, included_in_cohort, revised_included_in_cohort, withdrawal_reason,
+      completion_type, modified_date, user_id, status, comments, reviewer_user_id, reviewed_date, cte
+    from studentcohortdata
+    left outer join studentcohortdocs 
+    using (student_key)
+    where cohortyear = extract(year from sysdate) - 4"
+  ) %>% 
+    janitor::clean_names() %>% 
+    as.tbl()
     
-  ## From prior cohort files
-  student_level_prior = read_csv(str_c("N:/ORP_accountability/data/", year(today()) - 1, "_graduation_rate/student_level.csv"))
+  # From prior cohort files
+  student_level_prior = read_csv(
+    str_c("N:/ORP_accountability/data/", year(today()) - 1, "_graduation_rate/student_level.csv")
+  ) 
   
-  ## Compile 
-  grad_data = mutate(student_level_current, 
-                     grad_cohort = (INCLUDED_IN_COHORT == "Y" & (REVISED_INCLUDED_IN_COHORT != "N" | is.na(REVISED_INCLUDED_IN_COHORT))) | 
-                                      (INCLUDED_IN_COHORT == "P" & (REVISED_INCLUDED_IN_COHORT == "Y" | is.na(REVISED_INCLUDED_IN_COHORT)))) %>% 
-    group_by(DISTRICT_NO) %>% 
-    summarize(doc_denied = sum(grad_cohort == T & STATUS == 2, na.rm = T),
-              elig_no_doc = sum(grad_cohort == T & WITHDRAWAL_REASON %in% c(2, 5, 6, 8, 10, 17)),
-              wd_to_other_school_dist = sum(grad_cohort == T & WITHDRAWAL_REASON %in% c(3, 4)),
-              no_comp_no_wd = sum(grad_cohort == T & is.na(COMPLETION_TYPE) & is.na(WITHDRAWAL_REASON)),
-              current_grad_cohort = sum(grad_cohort, na.rm = T),
-              current_grad_count = sum(grad_cohort == T & COMPLETION_TYPE %in% c(1, 11, 12, 13))) %>% 
+  # Compile 
+  mutate(
+    student_level_current, 
+    grad_cohort = (included_in_cohort == "Y" & (revised_included_in_cohort != "N" | is.na(revised_included_in_cohort))) | 
+      (included_in_cohort == "P" & (revised_included_in_cohort == "Y" | is.na(revised_included_in_cohort)))
+  ) %>% 
+    mutate(
+      doc_denied = grad_cohort == T & status == 2,
+      elig_no_doc = grad_cohort == T & withdrawal_reason %in% c(2, 5, 6, 8, 10, 17),
+      wd_to_other_school_dist = grad_cohort == T & withdrawal_reason %in% c(3, 4),
+      no_comp_no_wd = grad_cohort == T & is.na(completion_type) & is.na(withdrawal_reason),
+      current_grad_cohort = grad_cohort,
+      current_grad_count = grad_cohort == T & completion_type %in% c(1, 11, 12, 13)
+    ) %>% 
+    write_csv(str_c("N:/ORP_accountability/projects/", year(today()), "_graduation_rate/Communications/Emails/phase1_email_data.csv"), na = "")
+  
+  grad_data = read_csv(str_c("N:/ORP_accountability/projects/", year(today()), "_graduation_rate/Communications/Emails/phase1_email_data.csv")) %>% 
+    group_by(district_no) %>% 
+    summarize_at(vars(doc_denied:current_grad_count), funs(sum(., na.rm = T))) %>%  
     ungroup() %>% 
     mutate(current_grad_rate = round(100 * current_grad_count / current_grad_cohort, 1)) %>% 
-    rename(system = DISTRICT_NO) %>% 
+    rename(system = district_no) %>% 
     filter(!is.na(system)) %>% 
     # Previous graduation rate
-    left_join(
-      group_by(student_level_prior, system) %>% 
-        summarize(prev_grad_rate = round(100 * sum(completion_type %in% c(1, 11, 12, 13) & included_in_cohort == "Y", na.rm = T) / 
-                                             sum(included_in_cohort == "Y", na.rm = T) + 1e-9, 1)), 
-      by = "system"
-    ) %>%
+    left_join(group_by(student_level_prior, system) %>% 
+                summarize(prev_grad_rate = round(100 * sum(included_in_cohort == "Y" & completion_type %in% c(1, 11, 12, 13), na.rm = T) / 
+                                                   sum(included_in_cohort == "Y", na.rm = T), 1)), 
+              by = "system") %>%
     # Crosswalk district names
     left_join(read_dta("C:/Users/CA19130/Documents/Data/Crosswalks/system_system_name_crosswalk.dta"), by = "system") %>% 
     mutate(system_name = ifelse(system == 90, "Carroll County", system_name)) %>% 
@@ -72,10 +82,15 @@ if(phase1 == T) {
     select(starts_with("system"), everything()) %>% 
     mutate(eis_email= ifelse(is.na(cohort_email) | cohort_email != eis_email, eis_email, NA))
     
-  ## Save file
-  # xlsx::write.xlsx(as.data.frame(grad_data), 
-  #                  str_c("N:/ORP_accountability/projects/", year(today()), "_graduation_rate/Coding/VBA/Mid-April Flag Email.xlsx"),
-  #                  row.names = F, showNA = F)
+  # Save file
+  xlsx::write.xlsx(
+    as.data.frame(grad_data),
+    str_c("N:/ORP_accountability/projects/", year(today()), "_graduation_rate/Communications/Emails/Phase_I_Deadline_Email_Data.xlsx"),
+    row.names = F, showNA = F
+  )  
+  
+  # Save student-level list
+                   
 } else {
   rm(phase1)
 }
@@ -100,9 +115,9 @@ if(phase2 == T) {
   
   ## Calculate current flags and rates
   curr = read_csv(str_c("Data/", flis$fl[1])) %>% 
-    mutate(system = as.numeric(DISTRICT_NO),
-           current_grad_cohort = INCLUDED_IN_COHORT == "Y",
-           current_grad_count = current_grad_cohort == T & COMPLETION_TYPE %in% c(1, 11, 12, 13),
+    mutate(system = as.numeric(district_no),
+           current_grad_cohort = included_in_cohort == "Y",
+           current_grad_count = current_grad_cohort == T & completion_type %in% c(1, 11, 12, 13),
            summer_grads = current_grad_count == T & dmy(COMPLETION_DATE) >= ymd(str_c(year(today()), "0608"))) %>% 
     group_by(system) %>% 
     summarize_at(vars(starts_with("current"), summer_grads), funs(sum(., na.rm = T))) %>% 
@@ -156,24 +171,6 @@ if(phase2 == T) {
 
 # Checks
 if(checks == T) {
-  con = dbConnect(
-    JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
-    readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
-    "EIS_MGR",
-    readRegistry("Environment", "HCU")$EIS_MGR_PWD
-  )
-  
-  as.data.frame(as.tbl(dbGetQuery(con, "
-SELECT scd.student_key, first_name, last_name, withdrawal_reason, comments 
-FROM studentcohortdata scd
-LEFT OUTER JOIN studentcohortdocs doc on scd.student_key = doc.student_key
-WHERE status = 2
-AND district_no = 360"))) %>%
-  write_csv("C:/Users/CA19130/Downloads/cohort_hardin_denied.csv", na = "")
-  #%>% 
-    filter(str_detect(COMMENTS, "The document indicates") == T) %>% 
-    transmute(name = str_c(str_sub(FIRST_NAME, 1, 1), ". ", LAST_NAME, " (", STUDENT_KEY, ")")) %>% 
-    print()
 } else {
   rm(checks)
 }
