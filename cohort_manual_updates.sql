@@ -1,15 +1,39 @@
 --Cohort Manual Updates (Weekly)
 --Evan Kramer
---2/1/2019
+--6/11/2019
 
 -- Manual updates
 -- Verify changes
-SELECT student_key, first_name, middle_name, last_name, district_no, school_no, cohortyear, included_in_cohort, withdrawal_reason, completion_type, allow_upload
-FROM studentcohortdata
---FROM studentcohortdata_historic
-WHERE student_key IN (
-4229457
-);
+select distinct student_key 
+from student_concentrators
+union
+select student_key
+from sde_dir.person@sde_dir_link.world per,
+    voc_ed.ve_concentrator@sde_dir_link.world vc
+where sde_dir.per.person_id = voc_ed.vc.person_id;   
+
+select * 
+from voc_ed.ve_concentrator@sde_dir_link.world;
+
+-- CTE manual update
+UPDATE studentcohortdata
+SET cte = 'Y'
+WHERE student_key in (
+    SELECT DISTINCT student_key 
+    FROM student_concentrators
+    UNION
+    SELECT sde_dir.per.student_key
+        from sde_dir.person@sde_dir_link.world per,
+             voc_ed.ve_concentrator@sde_dir_link.world vc
+       where sde_dir.per.person_id = voc_ed.vc.person_id) and 
+    cohortyear = extract(year from sysdate) - 4;
+COMMIT;
+UPDATE studentcohortdata
+SET cte = 'N'
+WHERE cte IS NULL;
+COMMIT;
+
+/*
 
 -- Change cohort year
 -- 2015

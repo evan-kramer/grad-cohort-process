@@ -1,6 +1,6 @@
 # Graduation Cohort Change Requests
 # Evan Kramer
-# 6/3/2019
+# 6/11/2019
 
 options(java.parameters = "-Xmx16G")
 library(tidyverse)
@@ -12,12 +12,12 @@ setwd("N:/ORP_accountability/projects/2019_graduation_rate/Documentation for Coh
 # Switches
 tracker = T
 output = T
-changes = T
+changes = F
 
 # Tracker
 if(tracker) {
   # Find the worksheet that is closest to today's date
-  d = list.files("Worksheets")[ymd(list.files("Worksheets")) <= today() + ddays(2)]
+  d = list.files("Worksheets")[ymd(list.files("Worksheets")) <= today() + ddays(3)]
   
   # Read files and bind rows
   # Initialize data frame for storing lists of files to read and data
