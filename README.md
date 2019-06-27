@@ -37,12 +37,14 @@ Please note that the department must make manual updates to EIS data tables in E
 ## Process phases 
 The annual graduation cohort process occurs in four phases.
 
-| __Phase__ | __Description of Required Actions__ | __Person(s) Responsible__ | __Timeline__ |
-| Ongoing | Submit questions not addressed in guidance documents to [TNED.Graduates@tn.gov](mailto:TNED.Graduates@tn.gov) | District personnel | Ongoing | 
-| Ongoing | Respond to submitted questions; see [Appendix B]{#appendix} for common questions and responses | Accountability Project Manager | Ongoing | 
+| __Phase__ | __Description of Required Actions__       							| __Person(s) Responsible__ 		| __Timeline__ 	|
+| Ongoing   | Submit questions to TNED.Graduates@tn.gov 							| District personnel	    		| Ongoing	||
+| Ongoing   | Respond to district questions (see [Appendix B](#appendixB) for common questions and responses	| Accountability Project Manager	| Ongoing	|
+
+
 
 
 ## Code
 
-
-
+## Appendix A: Manual Data Updates
+## Appendix B: Common Questions and Guidance
