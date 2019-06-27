@@ -12,7 +12,7 @@ setwd("N:/ORP_accountability/projects/2019_graduation_rate/Documentation for Coh
 # Switches
 tracker = T
 output = T
-changes = F
+changes = T
 
 # Tracker
 if(tracker) {
