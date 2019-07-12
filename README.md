@@ -51,7 +51,9 @@ The annual graduation cohort process occurs in four phases.
 - Phase II
 	- Before the start of Phase II
 		- [Update CTE data](https://github.com/evan-kramer/grad-cohort-process/blob/master/cohort_manual_updates.sql#L18)
-		- [Finalize the values of the `included_in_cohort` field]()
+		- [Finalize the values of the `included_in_cohort` field](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L20)
+	- Daily
+		- Include [summer graduates](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L5)
 	
 	
 
