@@ -2,12 +2,12 @@
 Last updated: June 27, 2019
 
 ## Contents
-[Purpose](#purpose)
-[Background](#background)
-[Process Phases](#phases)
-[Code](#code)
-[Appendix A: Manual Data Updates](#appendixA)
-[Appendix B: Common Questions and Guidance](#appendixB)
+- [Purpose](#purpose)
+- [Background](#background)
+- [Process Phases](#phases)
+- [Code](#code)
+- [Appendix A: Manual Data Updates](#appendixA)
+- [Appendix B: Common Questions and Guidance](#appendixB)
 
 ## Purpose {#purpose}
 This document outlines the internal actions required to calculate graduation rates. The following laws and policies govern the calculation of graduation rates:
@@ -32,10 +32,14 @@ Districts submit and interact with their graduation cohort data in two ways:
 1. Districts enter graduation-related data (e.g., completion types, withdrawal codes, etc. into their __Student Information Systems__ (SIS).
 2. These data feed into the tables in EIS that are the backend for the __Cohort application__, where districts submit documentation to request certain students exclusion from the cohort.
 
-Please note that the department must make manual updates to EIS data tables in EIS in rare cases. Please consult [Appendix B](#appendixB) for more details on these edge cases.
+Please note that the department must make manual updates to EIS data tables in rare cases. Please consult [Appendix B](#appendixB) for more details on these edge cases.
 
 ## Process phases 
 The annual graduation cohort process occurs in four phases.
+- Phase I
+	- Process
+	- Code
+		- During Phase I, we run the []()
 
 | __Phase__ | __Description of Required Actions__       							| __Person(s) Responsible__ 		| __Timeline__ 	|
 | Ongoing   | Submit questions to TNED.Graduates@tn.gov 							| District personnel	    		| Ongoing	|
