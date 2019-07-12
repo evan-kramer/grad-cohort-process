@@ -4,10 +4,10 @@ Last updated: June 27, 2019
 ## Contents
 - [Purpose](#purpose)
 - [Background](#background)
-- [Process Phases](#phases)
+- [Phases](#phases)
 - [Code](#code)
-- [Appendix A: Manual Data Updates](#appendixA)
-- [Appendix B: Common Questions and Guidance](#appendixB)
+- [Appendix A: Manual Data Updates](#appendix A)
+- [Appendix B: Common Questions and Guidance](#appendix B)
 
 ## Purpose {#purpose}
 This document outlines the internal actions required to calculate graduation rates. The following laws and policies govern the calculation of graduation rates:
@@ -32,21 +32,28 @@ Districts submit and interact with their graduation cohort data in two ways:
 1. Districts enter graduation-related data (e.g., completion types, withdrawal codes, etc. into their __Student Information Systems__ (SIS).
 2. These data feed into the tables in EIS that are the backend for the __Cohort application__, where districts submit documentation to request certain students exclusion from the cohort.
 
-Please note that the department must make manual updates to EIS data tables in rare cases. Please consult [Appendix B](#appendixB) for more details on these edge cases.
+Please note that the department must make manual updates to EIS data tables in rare cases. Please consult [Appendix B](#appendix B) for more details on these edge cases.
 
 ## Process phases 
 The annual graduation cohort process occurs in four phases.
 - Phase I
-	- Process
-	- Code
-		- During Phase I, we run the []()
-
-| __Phase__ | __Description of Required Actions__       							| __Person(s) Responsible__ 		| __Timeline__ 	|
-| Ongoing   | Submit questions to TNED.Graduates@tn.gov 							| District personnel	    		| Ongoing	|
-| Ongoing   | Respond to district questions (see [Appendix B](#appendixB) for common questions and responses	| Accountability Project Manager	| Ongoing	|
-
-
-
+	- At the start of Phase I
+		- Conduct [initial data quality checks](https://github.com/evan-kramer/grad-cohort-process/blob/master/initial_cohort_data_check.R).
+	- Weekly
+		- [Pull data and run status updates](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_weekly_update.Rmd).
+	- Monthly
+		- Run [change request process](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_change_requests.R) (increase to weekly when closer to deadline).
+			- The `tracker` switch compiles all district submissions into a single file when set to `T`.
+			- The `output` switch saves the output to the server.
+			- The `changes` switch actually executes the approved changes in the EIS tables.
+	- One week before Phase I deadline
+		- Compile data for [cohort reminder emails](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_emails.R) and send using VBA macro.
+- Phase II
+	- Before the start of Phase II
+		- [Update CTE data](https://github.com/evan-kramer/grad-cohort-process/blob/master/cohort_manual_updates.sql#L18)
+		- [Finalize the values of the `included_in_cohort` field]()
+	
+	
 
 ## Code
 
