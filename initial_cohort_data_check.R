@@ -1,14 +1,68 @@
 # Initial Cohort Data Check
 # Evan Kramer
-# 11/2/2017
+# 7/12/2019
 
+# Set up
+options(java.parameters = "-Xmx16G")
+library(RJDBC)
+library(rgdal)
 library(tidyverse)
 library(lubridate)
-library(stringr)
 library(haven)
+library(knitr)
+library(rmarkdown)
+setwd("N:/ORP_accountability/")
+con = dbConnect(
+  JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
+  readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
+  "EIS_MGR",
+  readRegistry("Environment", "HCU")$EIS_MGR_PWD
+)
 
-date = str_replace_all(today(), "-", "")
-setwd("C:/Users/CA19130/Documents/Data/Graduation Rate")
+# Application contains all four active cohorts
+dbGetQuery(
+  con,
+  "select cohortyear, count(distinct student_key) as n_students
+  from studentcohortdata 
+  group by cohortyear
+  order by n_students desc"
+) %>% 
+  janitor::clean_names() %>% 
+  as.tbl() %>% 
+  filter(between(cohortyear, year(now()) - 3, year(now())))
+
+# Number of students in each school/district/state cohort is within 10% of prior year
+full_join(
+  dbGetQuery(
+    con,
+    "select cohortyear, district_no, school_no, count(distinct student_key) as n_students
+    from studentcohortdata
+    where included_in_cohort in ('Y', 'P') and cohortyear = extract(year from sysdate) - 3
+    group by cohortyear, district_no, school_no
+    order by district_no, school_no"
+  ),
+  dbGetQuery(
+    con,
+    "select cohortyear, district_no, school_no, count(distinct student_key) as n_students
+    from studentcohortdata_historic
+    where included_in_cohort = 'Y' and cohortyear = extract(year from sysdate) - 5 -- change to 4
+    group by cohortyear, district_no, school_no
+    order by district_no, school_no"
+  ),
+  by = c("DISTRICT_NO", "SCHOOL_NO")
+) %>%
+  janitor::clean_names() %>%
+  as.tbl() %>% 
+  mutate(pct_diff = ifelse(n_students_y >= 30 & n_students_x >= 30, 
+                           round(100 * (n_students_x - n_students_y) / n_students_y, 1), NA)) %>% 
+  arrange(desc(pct_diff))
+
+# Same as above by subgroup
+# No students without district or school numbers
+# Students in inactive schools?
+# Students with missing values across various fields?
+# Inappropriate included_in_cohort values?
+# Changes in withdrawals? 
 
 # Read in data
 data = read_csv("studentcohortdata_20171101.csv")

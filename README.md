@@ -5,11 +5,8 @@ Last updated: June 27, 2019
 - [Purpose](#purpose)
 - [Background](#background)
 - [Phases](#phases)
-- [Code](#code)
-- [Appendix A: Manual Data Updates](#appendix A)
-- [Appendix B: Common Questions and Guidance](#appendix B)
 
-## Purpose {#purpose}
+## Purpose
 This document outlines the internal actions required to calculate graduation rates. The following laws and policies govern the calculation of graduation rates:
 - Federal law
 	- [Title VIII Section 8101(25)(A) et seq.](https://legcounsel.house.gov/Comps/Elementary%20And%20Secondary%20Education%20Act%20Of%201965.pdf)
@@ -50,12 +47,15 @@ The annual graduation cohort process occurs in four phases.
 		- Compile data for [cohort reminder emails](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_emails.R) and send using VBA macro.
 - Phase II
 	- Before the start of Phase II
-		- [Update CTE data](https://github.com/evan-kramer/grad-cohort-process/blob/master/cohort_manual_updates.sql#L18)
-		- [Finalize the values of the `included_in_cohort` field](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L20)
+		- [Update CTE data](https://github.com/evan-kramer/grad-cohort-process/blob/master/cohort_manual_updates.sql#L18).
+		- [Finalize the values of the `included_in_cohort` field](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L20).
 	- Daily
-		- Include [summer graduates](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L5)
-	
-	
+		- Include [summer graduates](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L5).
+- Phase III 
+	- Between Phase II and Phase III
+		- Create appeals tracker and [compile appeals](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_appeals.R).
+		- [Complete appeals](https://github.com/evan-kramer/grad-cohort-process/blob/master/appeals_included_summer_graduates.sql#L77) by updating data in EIS tables.
+			- __Note__: This could be added to the code to [compile the appeals tracker](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_appeals.R).
 
 ## Code
 
