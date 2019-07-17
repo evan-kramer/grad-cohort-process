@@ -31,7 +31,7 @@ Districts submit and interact with their graduation cohort data in two ways:
 
 Please note that the department must make manual updates to EIS data tables in rare cases. Please consult [Appendix B](#appendix B) for more details on these edge cases.
 
-## Process phases 
+## Phases 
 The annual graduation cohort process occurs in four phases.
 - Phase I
 	- At the start of Phase I
