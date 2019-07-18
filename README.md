@@ -5,6 +5,7 @@ Last updated: June 27, 2019
 - [Purpose](#purpose)
 - [Background](#background)
 - [Phases](#phases)
+- [Code](#code)
 
 ## Purpose
 This document outlines the internal actions required to calculate graduation rates. The following laws and policies govern the calculation of graduation rates:
@@ -58,6 +59,6 @@ The annual graduation cohort process occurs in four phases.
 			- __Note__: This could be added to the code to [compile the appeals tracker](https://github.com/evan-kramer/grad-cohort-process/blob/master/graduation_cohort_appeals.R).
 
 ## Code
-
-## Appendix A: Manual Data Updates
-## Appendix B: Common Questions and Guidance
+Below is a list of other scripts in this repository and their intended purpose.
+- [`less_than_60_days`](https://github.com/evan-kramer/grad-cohort-process/blob/master/less_than_60_days.R) tries to predict which students will be eligible for appeal because they were enrolled for less than 60 days in the most recent school year.
+- 
