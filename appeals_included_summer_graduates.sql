@@ -19,20 +19,36 @@ COMMIT;
 
 -- Finalize included_in_cohort variable 
 -- N/Y
-UPDATE studentcohortdata scd
-SET scd.included_in_cohort = (
-    SELECT doc.revised_included_in_cohort
-    FROM studentcohortdata scd, studentcohortdocs doc
-    WHERE scd.student_key = doc.student_key
-    AND scd.included_in_cohort = 'N' AND doc.revised_included_in_cohort = 'Y'
-)
-WHERE scd.student_key IN (
-    SELECT DISTINCT scd.student_key
-    FROM studentcohortdata scd, studentcohortdocs doc
-    WHERE scd.student_key = doc.student_key
-    AND scd.included_in_cohort = 'N' AND doc.revised_included_in_cohort = 'Y'
-);
-COMMIT;
+MERGE INTO studentcohortdata scd
+USING (
+    SELECT student_key, included_in_cohort, revised_included_in_cohort
+    FROM studentcohortdata scd
+    LEFT OUTER JOIN studentcohortdocs doc
+    USING (student_key)
+    WHERE cohortyear = extract(year from sysdate) - 4 and 
+        included_in_cohort = 'N' and 
+        revised_included_in_cohort = 'Y'
+) src 
+ON (scd.student_key = src.student_key)
+WHEN MATCHED THEN
+UPDATE
+SET scd.included_in_cohort = src.revised_included_in_cohort;
+
+-- Y/N
+MERGE INTO studentcohortdata scd
+USING (
+    SELECT student_key, included_in_cohort, revised_included_in_cohort
+    FROM studentcohortdata scd
+    LEFT OUTER JOIN studentcohortdocs doc
+    USING (student_key)
+    WHERE cohortyear = extract(year from sysdate) - 4 and 
+        included_in_cohort = 'Y' and 
+        revised_included_in_cohort = 'N'
+) src 
+ON (scd.student_key = src.student_key)
+WHEN MATCHED THEN
+UPDATE
+SET scd.included_in_cohort = src.revised_included_in_cohort;
 
 -- P/N
 UPDATE studentcohortdata scd
@@ -41,10 +57,9 @@ WHERE scd.student_key IN (
     SELECT scd.student_key
     FROM studentcohortdata scd, studentcohortdocs doc
     WHERE scd.student_key = doc.student_key
-    AND scd.cohortyear = 2014
+    AND scd.cohortyear = extract(year from sysdate) - 4
     AND scd.included_in_cohort = 'P' AND doc.revised_included_in_cohort = 'N'
 );
-COMMIT;
 
 -- P/Y or NULL
 UPDATE studentcohortdata scd
@@ -53,24 +68,13 @@ WHERE scd.student_key IN (
     SELECT scd.student_key
     FROM studentcohortdata scd
     LEFT OUTER JOIN studentcohortdocs doc ON doc.student_key = scd.student_key
-    WHERE scd.cohortyear = 2014
+    WHERE scd.cohortyear = extract(year from sysdate) - 4
     AND scd.included_in_cohort = 'P' AND 
         (doc.revised_included_in_cohort = 'Y' OR doc.revised_included_in_cohort IS NULL)
 );
 COMMIT;
 
--- Y/N
-UPDATE studentcohortdata scd
-SET scd.included_in_cohort = 'N'
-WHERE scd.student_key IN (
-    SELECT scd.student_key
-    FROM studentcohortdata scd
-    LEFT OUTER JOIN studentcohortdocs doc ON doc.student_key = scd.student_key
-    WHERE scd.cohortyear = 2014
-    AND scd.included_in_cohort = 'Y' AND doc.revised_included_in_cohort = 'N'
-);
-COMMIT;
-
+/*
 -- Test appeals
 select student_key, completion_type from studentcohortdata where student_key in (3292772, 3292785);
 

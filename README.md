@@ -1,5 +1,4 @@
 # Graduation Rate Process
-Last updated: July 19, 2019
 
 ## Contents
 - [Purpose](#purpose)

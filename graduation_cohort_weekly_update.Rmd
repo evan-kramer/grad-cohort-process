@@ -9,12 +9,12 @@ library(rmarkdown)
 
 # Set variables
 date = str_replace_all(today(), "-", "")
-current_year = ifelse(month(today()) >= 9, year(today()) + 1, year(today()))
-deadline = ymd(str_c(current_year, "0614"))
-knitr::opts_chunk$set(echo = F) # makes it so that it doesn't display the code that produces the output
+current_year = ifelse(month(today()) >= 10, year(today()) + 1, year(today()))
+deadline = ymd(str_c(current_year, "0614")) # adjust based on deadline for current year
+knitr::opts_chunk$set(echo = F) # makes it so that it doesn't display the code that produces the output for all code chunks
 con = dbConnect(
-  JDBC("oracle.jdbc.OracleDriver", classPath="C:/Users/CA19130/Downloads/ojdbc6.jar"), 
-  readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR,
+  JDBC("oracle.jdbc.OracleDriver", classPath="N:/ORP_accountability/ojdbc6.jar"), 
+  readRegistry("Environment", "HCU")$EIS_MGR_CXN_STR, # will need to be updated to reference local registry -- do NOT hard-code password
   "EIS_MGR",
   readRegistry("Environment", "HCU")$EIS_MGR_PWD
 )
@@ -42,94 +42,122 @@ where cohortyear = ", current_year - 4)
 write_csv(scd, str_c("N:/ORP_accountability/projects/", current_year,
 "_graduation_rate/Data/studentcohortdata_", date, ".csv"), na = "")
 
-# Prior documents/reviews: 2016-2017
-n_docs_over_time_lag2 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                       current_year - 1, 
-                                       "_graduation_rate/Data/n_docs_over_time_",
-                                       current_year - 2, ".csv")) %>% 
-  mutate(date = date + dyears(2))
+# Prior documents/review
+# Docs over time - 2 years ago
+n_docs_over_time_lag2 = tibble()
+# Exception for 2017
+if(current_year - 2 == 2017) {
+  setwd(str_c("N:/ORP_accountability/projects/", current_year - 1, "_graduation_rate/Data"))
+  n_docs_over_time_lag2 = read_csv(str_c("n_docs_over_time_", current_year - 2, ".csv")) %>% 
+    mutate(date = date + dyears(2))
+  n_docs_by_district_lag2 = read_csv(str_c("n_docs_by_district_", current_year - 2, ".csv")) %>% 
+    mutate(date = date + dyears(2))
+  n_docs_by_wd_lag2 = read_csv(str_c("n_docs_by_wd_", current_year - 2, ".csv")) %>% 
+    mutate(date = date + dyears(2))
+# 2018 and beyond
+} else {
+  # Master
+  n_docs_over_time_lag2_master = tibble()
+  setwd(str_c("N:/ORP_accountability/projects/", current_year - 2, "_graduation_rate/Data"))
+  for(f in sort(list.files())) {
+    if(str_detect(f, "studentcohortdata")) {
+      n_docs_over_time_lag2_master = read_csv(f) %>% 
+        janitor::clean_names() %>%
+        group_by(district_no, withdrawal_reason) %>% 
+        summarize(
+          date = ymd(str_replace_all(str_replace_all(f, ".csv", ""), "studentcohortdata_", "")),
+          n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17), na.rm = T),
+          n_docs = sum(!is.na(save_as_filename)),
+          n_reviewed = sum(!is.na(reviewer_user_id)),
+          year = current_year - 2
+        ) %>% 
+        ungroup() %>% 
+        bind_rows(n_docs_over_time_lag2_master, .)
+    }
+  }
+  # Overall
+  n_docs_over_time_lag2 = mutate(n_docs_over_time_lag2_master, date = date + dyears(2)) %>% 
+    group_by(date, year) %>% 
+    summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+    ungroup()
+  # By district
+  n_docs_by_district_lag2 = mutate(n_docs_over_time_lag2_master, date = date + dyears(2)) %>% 
+    group_by(date, year, district_no) %>% 
+    summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+    ungroup()
+  # By withdrawal code
+  n_docs_by_wd_lag2 = mutate(n_docs_over_time_lag2_master, date = date + dyears(2)) %>% 
+    group_by(date, year, withdrawal_reason) %>% 
+    summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+    ungroup()
+}
 
-n_docs_over_time_lag1 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                       current_year - 1, 
-                                       "_graduation_rate/Data/n_docs_over_time_",
-                                       current_year - 1, ".csv")) %>% 
-  mutate(date = date + dyears(1))
-
-n_docs_by_district_lag2 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                         current_year - 1, 
-                                        "_graduation_rate/Data/n_docs_by_district_",
-                                         current_year - 2, ".csv")) %>% 
-  mutate(date = date + dyears(2))
-
-n_docs_by_district_lag1 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                         current_year - 1, 
-                                        "_graduation_rate/Data/n_docs_by_district_",
-                                         current_year - 1, ".csv")) %>% 
-  mutate(date = date + dyears(1))
-
-n_docs_by_wd_lag2 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                         current_year - 1, 
-                                        "_graduation_rate/Data/n_docs_by_wd_",
-                                         current_year - 2, ".csv")) %>% 
-  mutate(date = date + dyears(2))
-
-n_docs_by_wd_lag1 = read_csv(str_c("N:/ORP_accountability/projects/",
-                                         current_year - 1, 
-                                         "_graduation_rate/Data/n_docs_by_wd_",
-                                         current_year - 1, ".csv")) %>% 
-  mutate(date = date + dyears(1))
+# Docs over time - Prior year
+# Master
+n_docs_over_time_lag1_master = tibble()
+setwd(str_c("N:/ORP_accountability/projects/", current_year - 1, "_graduation_rate/Data"))
+for(f in sort(list.files())) {
+  if(str_detect(f, "studentcohortdata")) {
+    n_docs_over_time_lag1_master = read_csv(f) %>% 
+      janitor::clean_names() %>%
+      group_by(district_no, withdrawal_reason) %>% 
+      summarize(
+        date = ymd(str_replace_all(str_replace_all(f, ".csv", ""), "studentcohortdata_", "")),
+        n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17), na.rm = T),
+        n_docs = sum(!is.na(save_as_filename)),
+        n_reviewed = sum(!is.na(reviewer_user_id)),
+        year = current_year - 1
+      ) %>% 
+      ungroup() %>% 
+      bind_rows(n_docs_over_time_lag1_master, .)
+  }
+}
+# Overall
+n_docs_over_time_lag1 = mutate(n_docs_over_time_lag1_master, date = date + dyears(1)) %>% 
+  group_by(date, year) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
+# By district
+n_docs_by_district_lag1 = mutate(n_docs_over_time_lag1_master, date = date + dyears(1)) %>% 
+  group_by(date, year, district_no) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
+# By withdrawal code
+n_docs_by_wd_lag1 = mutate(n_docs_over_time_lag1_master, date = date + dyears(1)) %>% 
+  group_by(date, year, withdrawal_reason) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
 
 # Current documents/reviews
 setwd(str_c("N:/ORP_accountability/projects/", current_year, "_graduation_rate/Data"))
-fl = list.files()
-    
-n_docs = as.tbl(data.frame())
-for(f in seq_along(fl)) {
-  if(str_detect(fl[f], "studentcohortdata_") == T) {
-    temp = read_csv(as.character(fl[f]), col_types = "ddccccTcdcTdcccccccccdcddccddcccdccccccdcccTcccTccccccccc") %>% 
+n_docs_master = tibble()
+for(f in sort(list.files())) {
+  if(str_detect(f, "studentcohortdata_") == T) {
+    n_docs_master = read_csv(f) %>% 
       janitor::clean_names() %>%
-      summarize(date = ymd(str_sub(fl[f], start = str_locate(fl[f], "_")[1] + 1, end = -4)),
-                n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17, na.rm = T)),
-                n_docs = sum(!is.na(modified_date)),
-                n_reviewed = sum(!is.na(reviewed_date)))
-    n_docs = mutate(bind_rows(n_docs, temp), year = current_year)
+      group_by(district_no, withdrawal_reason) %>% 
+      summarize(
+        year = current_year,
+        date = ymd(str_replace_all(str_replace_all(f, "studentcohortdata_", ""), ".csv", "")),
+        n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17, na.rm = T)),
+        n_docs = sum(!is.na(modified_date)),
+        n_reviewed = sum(!is.na(reviewed_date))
+      ) %>% 
+      bind_rows(n_docs_master, .)
   }
 }
-write_csv(n_docs, str_c("n_docs_over_time_", current_year, ".csv"), na = "")
-
-## By district
-n_docs_district = as.tbl(data.frame())
-for(f in seq_along(fl)) {
-  if(str_detect(fl[f], "studentcohortdata_") == T) {
-    temp = read_csv(as.character(fl[f]), col_types = "ddccccTcdcTdcccccccccdcddccddcccdccccccdcccTcccTccccccccc") %>% 
-      janitor::clean_names() %>%
-      group_by(district_no) %>% 
-      summarize(date = ymd(str_sub(fl[f], start = str_locate(fl[f], "_")[1] + 1, end = -4)),
-                n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17, na.rm = T)),
-                n_docs = sum(!is.na(modified_date)),
-                n_reviewed = sum(!is.na(reviewed_date))) %>% 
-      ungroup()
-    n_docs_district = mutate(bind_rows(n_docs_district, temp), year = current_year)
-  }
-}
-write_csv(n_docs_district, str_c("n_docs_by_district_", current_year, ".csv"), na = "")
-
-## By withdrawal code
-n_docs_wd = as.tbl(data.frame())
-for(f in seq_along(fl)) {
-  if(str_detect(fl[f], "studentcohortdata_") == T) {
-    temp = read_csv(as.character(fl[f]), col_types = "ddccccTcdcTdcccccccccdcddccddcccdccccccdcccTcccTccccccccc") %>% 
-      janitor::clean_names() %>%
-      group_by(withdrawal_reason) %>% 
-      summarize(date = ymd(str_sub(fl[f], start = str_locate(fl[f], "_")[1] + 1, end = -4)),
-                n_elig = sum(withdrawal_reason %in% c(2, 5, 6, 8, 10, 17, na.rm = T)),
-                n_docs = sum(!is.na(modified_date)),
-                n_reviewed = sum(!is.na(reviewed_date))) %>% 
-      ungroup()
-    n_docs_wd = mutate(bind_rows(n_docs_wd, temp), year = current_year)
-  }
-}
-write_csv(n_docs_wd, str_c("n_docs_by_wd_", current_year, ".csv"), na = "")
+# Overall
+n_docs = group_by(n_docs_master, date, year) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
+# By district
+n_docs_district = group_by(n_docs_master, district_no, date, year) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
+# By withdrawal code
+n_docs_wd = group_by(n_docs_master, date, withdrawal_reason, year) %>% 
+  summarize_at(vars(starts_with("n_")), funs(sum(., na.rm = T))) %>% 
+  ungroup()
 
 # Grad rates
 ## Lag
@@ -207,7 +235,7 @@ Districts have uploaded __`r n_docs %>% filter(date == max(date, na.rm = T)) %>%
  
 ```{r, echo = F}
 ## Plot document reviews compared to uploads
-n_docs %>% 
+select(n_docs, date, starts_with("n_"), year) %>%
   gather(doc_type, n_docs, 2:4) %>%
   mutate(doc_type = ifelse(doc_type == "n_docs", "Uploaded", doc_type),
          doc_type = ifelse(doc_type == "n_elig", "Eligible", doc_type),
