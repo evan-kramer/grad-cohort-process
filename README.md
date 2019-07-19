@@ -60,7 +60,6 @@ The annual graduation cohort process occurs in four phases.
 
 ## Code
 Below is a list of other scripts in this repository and their intended purpose.
-- [`docs_audit`]() attempts to extract doc BLOBs (i.e., PDF document uploads) stored in EIS tables.
-- [`extended_year_grad_rates`]() 
+- [`docs_audit`](https://github.com/evan-kramer/grad-cohort-process/blob/master/docs_audit.R) attempts to extract doc BLOBs (i.e., PDF document uploads) stored in EIS tables.
 - [`less_than_60_days`](https://github.com/evan-kramer/grad-cohort-process/blob/master/less_than_60_days.R) tries to predict which students will be eligible for appeal because they were enrolled for less than 60 days in the most recent school year.
-- [`students_in_wrong_cohort`]() tries to predict which students are in the wrong cohort (i.e., should actually graduate next year or have already graduated).
+- [`students_in_wrong_cohort`](https://github.com/evan-kramer/grad-cohort-process/blob/master/students_in_wrong_cohort.R) tries to predict which students are in the wrong cohort (i.e., should actually graduate next year or have already graduated).
