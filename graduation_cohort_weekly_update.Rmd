@@ -216,7 +216,12 @@ ltr = bind_rows(filter(n_docs, date == min(date, na.rm = T)),
                 filter(n_docs, date == max(date, na.rm = T))) # will need a way of accounting for when they plateau?
 
 # Status update file for document reviewers
-bydist %>% select(system, system_name, n_eligible = n_elig, n_uploaded, n_reviewed, pct_uploaded, pct_reviewed, n_to_review_again, n_code_changed) %>% 
+bydist %>% 
+  select(
+    system, system_name, n_eligible = n_elig, n_uploaded, n_reviewed, 
+    pct_uploaded, pct_reviewed, n_to_review_again, n_code_changed,
+    grad_rate_lag, grad_rate_current
+  ) %>% 
   write_csv(str_c("N:/ORP_accountability/projects/", current_year, "_graduation_rate/Documents for Reviewers/Status Updates/document_status_update_", str_replace_all(max_date, "-", ""), ".csv"), na = "")
 ```
 
