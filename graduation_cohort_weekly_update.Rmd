@@ -171,7 +171,7 @@ dist_grad_rates_current = scd %>%
   mutate(grad_cohort = (included_in_cohort == "Y" & is.na(revised_included_in_cohort)) | 
              revised_included_in_cohort == "Y" | 
              (included_in_cohort == "P" & (is.na(revised_included_in_cohort) | revised_included_in_cohort == "Y")),
-         grad_count = grad_cohort == T & completion_type == 1,
+         grad_count = grad_cohort == T & completion_type %in% c(1, 11, 12, 13),
          n_elig = withdrawal_reason %in% c(2,5,6,8,10,17),
          n_missing_info = is.na(withdrawal_reason) & is.na(completion_type),
          n_uploaded = !is.na(save_as_filename),
@@ -196,7 +196,7 @@ dist_grad_rates_current = scd %>%
 
 ## Combined
 bydist = left_join(dist_grad_rates_lag, dist_grad_rates_current, by = "system") %>% 
-  left_join(transmute(read_dta("C:/Users/CA19130/Documents/Data/Crosswalks/system_system_name_crosswalk.dta"), 
+  left_join(transmute(read_dta("N:/ORP_accountability/projects/Evan/Crosswalks/system_system_name_crosswalk.dta"), 
                    system = as.integer(system), system_name), by = "system") %>%
   select(system, system_name, grad_rate_lag = grad_rate.x, grad_rate_current = grad_rate.y, starts_with("n_"),
          starts_with("pct_"))

@@ -1,6 +1,6 @@
 -- Appeals, Included Students, and Summer Graduates
 -- Evan Kramer
--- 7/12/2019
+-- 7/25/2019
 
 -- Summer graduates
 MERGE INTO studentcohortdata scd
